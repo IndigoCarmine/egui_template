@@ -79,39 +79,42 @@ jobs:
             echo "value=0.0.0-dev" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build (universal binary)
+      # cargo-bundle is not available via taiki-e/install-action, so it has to be
+      # compiled. Swatinem/rust-cache above keeps this out of the critical path
+      # on subsequent runs.
+      - name: Install cargo-bundle and create-dmg
+        run: |
+          cargo install cargo-bundle --locked
+          brew install create-dmg
+
+      - name: Build (both architectures)
         run: |
           cargo build --release --target x86_64-apple-darwin
           cargo build --release --target aarch64-apple-darwin
 
-      - name: Build .icns
-        run: |
-          mkdir -p icon.iconset
-          # iconutil is strict about these filenames; @2x is the retina variant.
-          for size in 16 32 128 256 512; do
-            sips -z $size $size resources/icon.png --out "icon.iconset/icon_${size}x${size}.png"
-            sips -z $((size * 2)) $((size * 2)) resources/icon.png --out "icon.iconset/icon_${size}x${size}@2x.png"
-          done
-          iconutil -c icns icon.iconset -o icon.icns
-
-      - name: Assemble .app bundle
+      - name: Bundle .app
         env:
           VERSION: ${{ steps.version.outputs.value }}
         run: |
-          APP="${APP_NAME}.app"
-          mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
+          # cargo-bundle reads [package.metadata.bundle] from Cargo.toml and
+          # generates Info.plist and the Resources/ layout for us. It only ever
+          # bundles one architecture, so we swap in a universal binary after.
+          cargo bundle --release --target aarch64-apple-darwin
 
+          APP="target/aarch64-apple-darwin/release/bundle/osx/egui Template.app"
           lipo -create -output "${APP}/Contents/MacOS/${BIN_NAME}" \
             "target/x86_64-apple-darwin/release/${BIN_NAME}" \
             "target/aarch64-apple-darwin/release/${BIN_NAME}"
-          chmod +x "${APP}/Contents/MacOS/${BIN_NAME}"
+          lipo -info "${APP}/Contents/MacOS/${BIN_NAME}"
 
-          cp icon.icns "${APP}/Contents/Resources/icon.icns"
-          sed "s/__VERSION__/${VERSION}/g" installer/macos/Info.plist > "${APP}/Contents/Info.plist"
+          # cargo-bundle takes the version from Cargo.toml; the tag is the real
+          # source of truth, so overwrite both version keys with it.
+          plutil -replace CFBundleVersion -string "${VERSION}" "${APP}/Contents/Info.plist"
+          plutil -replace CFBundleShortVersionString -string "${VERSION}" "${APP}/Contents/Info.plist"
 
-          # Ad-hoc signature. Without any signature at all, Apple Silicon refuses
-          # to launch the app outright ("is damaged"). This is not notarisation:
-          # users still need to right-click -> Open the first time.
+          # Sign AFTER replacing the binary -- doing it earlier would be undone by
+          # the lipo swap. Ad-hoc signing is the minimum Apple Silicon needs to
+          # launch the app at all; it is not notarisation.
           codesign --force --deep --sign - "${APP}"
           codesign --verify --verbose "${APP}"
 
@@ -119,20 +122,23 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.value }}
         run: |
-          mkdir -p dmg
-          cp -R "${APP_NAME}.app" dmg/
-          # The /Applications alias is what makes the drag-to-install window work.
-          ln -s /Applications dmg/Applications
-          hdiutil create -volname "egui Template" -srcfolder dmg -ov -format UDZO \
-            "${APP_NAME}-${VERSION}-macos-universal.dmg"
+          APP="target/aarch64-apple-darwin/release/bundle/osx/egui Template.app"
+          create-dmg \
+            --volname "egui Template" \
+            --window-size 500 300 \
+            --icon "egui Template.app" 130 130 \
+            --app-drop-link 350 130 \
+            "${APP_NAME}-${VERSION}-macos-universal.dmg" \
+            "${APP}"
 
       - name: Stage artifacts
         env:
           VERSION: ${{ steps.version.outputs.value }}
         run: |
+          APP="target/aarch64-apple-darwin/release/bundle/osx/egui Template.app"
           mkdir -p out
           mv "${APP_NAME}-${VERSION}-macos-universal.dmg" out/
-          cp "${APP_NAME}.app/Contents/MacOS/${BIN_NAME}" "out/${APP_NAME}-${VERSION}-macos-universal"
+          cp "${APP}/Contents/MacOS/${BIN_NAME}" "out/${APP_NAME}-${VERSION}-macos-universal"
 
       - uses: actions/upload-artifact@v4
         with:

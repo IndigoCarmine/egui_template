@@ -4,8 +4,6 @@
 # Release-workflow scratch output (also produced when building installers locally)
 /out
 /AppDir
-/icon.iconset
-/icon.icns
 *.AppImage
 *.dmg
 *.deb

@@ -19,9 +19,14 @@ Push a `v*` tag and GitHub Actions builds and publishes **installers for Windows
 ## What's in the box
 
 - **Persistent state** — window contents survive restarts via eframe's `persistence` feature.
-- **Embedded icon** — one `resources/icon.png` drives the window icon, the Windows `.exe` icon, the macOS `.icns` and the Linux desktop entry.
+- **Icons for every platform** — `resources/` holds `icon.png` (window + Linux), `icon.ico` (Windows `.exe`) and `icon.icns` (macOS bundle).
+- **Declarative macOS bundling** — `cargo bundle` generates `Info.plist` from `[package.metadata.bundle]`, so there is no plist to hand-maintain.
+- **Wayland drag-and-drop** — `[patch.crates-io]` pins `winit`/`egui-winit` forks that implement native DnD on Wayland (upstream does not).
 - **Unit-testable app logic** — the app lives in `src/lib.rs`, not `main.rs`, so `cargo test` can reach it.
 - **CI** — `cargo fmt`, `cargo clippy -D warnings` and `cargo test` on all three platforms.
+
+> **Rust 1.92+** is required. Edition 2024 alone needs only 1.85, but the `egui-winit`
+> fork used for Wayland DnD raises the floor.
 
 ## Getting started
 
@@ -39,10 +44,10 @@ Rename in this order; the names are cross-referenced between files:
 2. **`src/lib.rs`** — `APP_NAME` (window title and persistence key).
 3. **`.github/workflows/release.yml`** — `BIN_NAME` (must match `Cargo.toml`'s `name`) and `APP_NAME` (used in artifact filenames).
 4. **`installer/windows.iss`** — `MyAppName`, `MyAppPublisher`, `MyAppURL`, `MyAppExeName`, and **generate a fresh `AppId` GUID**. The `AppId` is how Windows recognises an upgrade; once you have shipped a release, never change it.
-5. **`installer/macos/Info.plist`** — `CFBundleName`, `CFBundleIdentifier` (use a domain you control), `CFBundleExecutable`.
+5. **`Cargo.toml` `[package.metadata.bundle]`** — `name`, `identifier` (use a domain you control), `category`, descriptions. Also update the hard-coded `egui Template.app` paths in the `macos` job of `release.yml`, which must match `bundle.name`.
 6. **`installer/linux/egui-template.desktop`** — rename the file too, and update `Exec`/`Icon`.
 7. **`installer/linux/AppRun`** — the binary name in the `exec` line.
-8. **`resources/icon.png`** and **`resources/icon.ico`** — replace with your own art. Keep the PNG at 1024×1024 so the macOS `.icns` has a sharp source, and keep the `.ico` multi-resolution (16–256 px).
+8. **`resources/icon.png`**, **`resources/icon.ico`** and **`resources/icon.icns`** — replace with your own art. Keep the PNG at 1024×1024, the `.ico` multi-resolution (16–256 px), and the `.icns` containing at least the 32/128/256/512/1024 px variants.
 9. **`LICENSE`** — fill in the copyright holder.
 
 ## Cutting a release
@@ -73,7 +78,10 @@ iscc installer\windows.iss              # -> dist\
 # Linux .deb (needs cargo-deb)
 cargo install cargo-deb && cargo deb
 
-# macOS: see the `macos` job in .github/workflows/release.yml
+# macOS .app (needs cargo-bundle)
+cargo install cargo-bundle && cargo bundle --release
+# ...and a .dmg on top of it (needs `brew install create-dmg`);
+# see the `macos` job in .github/workflows/release.yml
 ```
 
 ## Testing workflows with act

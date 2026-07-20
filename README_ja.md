@@ -19,9 +19,14 @@
 ## 含まれているもの
 
 - **状態の永続化** — eframe の `persistence` 機能により、再起動しても画面の状態が復元されます。
-- **アイコンの埋め込み** — `resources/icon.png` 1 枚から、ウィンドウアイコン・Windows の `.exe` アイコン・macOS の `.icns`・Linux のデスクトップエントリをまかなえます。
+- **全プラットフォーム分のアイコン** — `resources/` に `icon.png`（ウィンドウ + Linux）・`icon.ico`（Windows の `.exe`）・`icon.icns`（macOS バンドル）を用意しています。
+- **宣言的な macOS バンドル** — `cargo bundle` が `[package.metadata.bundle]` から `Info.plist` を生成するため、plist を手で管理する必要がありません。
+- **Wayland でのドラッグ&ドロップ** — `[patch.crates-io]` で `winit` / `egui-winit` のフォークを指定しています（本家は Wayland のネイティブ DnD に未対応）。
 - **テスト可能なアプリロジック** — アプリ本体を `main.rs` ではなく `src/lib.rs` に置いているため、`cargo test` から参照できます。
 - **CI** — 3 プラットフォームで `cargo fmt` / `cargo clippy -D warnings` / `cargo test` を実行します。
+
+> **Rust 1.92 以上**が必要です。edition 2024 自体は 1.85 で足りますが、Wayland DnD 用の
+> `egui-winit` フォークが要求バージョンを引き上げています。
 
 ## はじめかた
 
@@ -39,10 +44,10 @@ cargo run
 2. **`src/lib.rs`** — `APP_NAME`（ウィンドウタイトルと永続化キー）。
 3. **`.github/workflows/release.yml`** — `BIN_NAME`（`Cargo.toml` の `name` と一致させる）と `APP_NAME`（成果物のファイル名に使用）。
 4. **`installer/windows.iss`** — `MyAppName` / `MyAppPublisher` / `MyAppURL` / `MyAppExeName`、そして **`AppId` の GUID を新しく生成**してください。`AppId` は Windows がアップグレードを判別するための識別子です。一度リリースしたあとは絶対に変更しないでください。
-5. **`installer/macos/Info.plist`** — `CFBundleName` / `CFBundleIdentifier`（自分が管理するドメインを使用）/ `CFBundleExecutable`。
+5. **`Cargo.toml` の `[package.metadata.bundle]`** — `name` / `identifier`（自分が管理するドメインを使用）/ `category` / 各種説明文。あわせて `release.yml` の `macos` ジョブ内にハードコードされている `egui Template.app` のパスも、`bundle.name` と一致するように更新してください。
 6. **`installer/linux/egui-template.desktop`** — ファイル名自体もリネームし、`Exec` と `Icon` を更新。
 7. **`installer/linux/AppRun`** — `exec` 行のバイナリ名。
-8. **`resources/icon.png`** と **`resources/icon.ico`** — 自分のアイコンに差し替え。macOS の `.icns` を綺麗に生成するため PNG は 1024×1024 のままに、`.ico` はマルチ解像度（16〜256 px）のままにしてください。
+8. **`resources/icon.png`** / **`resources/icon.ico`** / **`resources/icon.icns`** — 自分のアイコンに差し替え。PNG は 1024×1024、`.ico` はマルチ解像度（16〜256 px）、`.icns` は最低でも 32/128/256/512/1024 px を含む状態を保ってください。
 9. **`LICENSE`** — 著作権者名を記入。
 
 ## リリースする
@@ -73,7 +78,10 @@ iscc installer\windows.iss              # -> dist\
 # Linux .deb（cargo-deb が必要）
 cargo install cargo-deb && cargo deb
 
-# macOS: .github/workflows/release.yml の macos ジョブを参照してください
+# macOS .app（cargo-bundle が必要）
+cargo install cargo-bundle && cargo bundle --release
+# さらに .dmg を作る場合は `brew install create-dmg` が必要です。
+# 詳細は .github/workflows/release.yml の macos ジョブを参照してください
 ```
 
 ## act でワークフローを試す
