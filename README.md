@@ -93,9 +93,9 @@ Building on Linux needs the usual windowing/GL headers:
 
 ```bash
 sudo apt-get install -y \
-  libgtk-3-dev libxkbcommon-dev libwayland-dev \
-  libegl1-mesa-dev libgl1-mesa-dev \
-  libx11-dev libxcursor-dev libxi-dev libxrandr-dev
+  libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+  libxkbcommon-dev libwayland-dev libegl1-mesa-dev \
+  libgtk-3-dev libssl-dev
 ```
 
 ## License
