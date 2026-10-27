@@ -25,7 +25,7 @@
 - **テスト可能なアプリロジック** — アプリ本体を `main.rs` ではなく `src/lib.rs` に置いているため、`cargo test` から参照できます。
 - **CI** — 3 プラットフォームで `cargo fmt` / `cargo clippy -D warnings` / `cargo test` を実行します。
 
-> **Rust 1.92 以上**が必要です。edition 2024 自体は 1.85 で足りますが、Wayland DnD 用の
+> **Rust 1.95 以上**が必要です。edition 2024 自体は 1.85 で足りますが、Wayland DnD 用の
 > `egui-winit` フォークが要求バージョンを引き上げています。
 
 ## はじめかた
