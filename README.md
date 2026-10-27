@@ -25,7 +25,7 @@ Push a `v*` tag and GitHub Actions builds and publishes **installers for Windows
 - **Unit-testable app logic** — the app lives in `src/lib.rs`, not `main.rs`, so `cargo test` can reach it.
 - **CI** — `cargo fmt`, `cargo clippy -D warnings` and `cargo test` on all three platforms.
 
-> **Rust 1.92+** is required. Edition 2024 alone needs only 1.85, but the `egui-winit`
+> **Rust 1.95+** is required. Edition 2024 alone needs only 1.85, but the `egui-winit`
 > fork used for Wayland DnD raises the floor.
 
 ## Getting started
